@@ -2,7 +2,7 @@
 set -euo pipefail
 
 APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-LOCK_FILE="/tmp/songbook_sheet.lock"
+LOCK_FILE="/tmp/songbook-sheet.lock"
 LOG_FILE="$APP_DIR/cron.log"
 
 log() {

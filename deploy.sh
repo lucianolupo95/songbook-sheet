@@ -2,7 +2,7 @@
 set -e
 
 echo "Deploy alive: starting"
-BASE_DIR="/srv/punk-records/hosting/songbook_sheet"
+BASE_DIR="/srv/punk-records/hosting/songbook-sheet"
 cd "$BASE_DIR"
 
 echo "Files in site/:"
