@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Cancionero · Luchito</title>
+  <style>
+    :root{
+      --bg:#0f1115;
+      --card:#151821;
+      --ink:#e8ecf1;
+      --muted:#a8b0bd;
+      --accent:#7bd389;
+      --accent-2:#8ab6ff;
+      --danger:#ff8a8a;
+      --shadow: 0 10px 24px rgba(0,0,0,.25);
+      --radius:14px;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0; font-family:system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, "Helvetica Neue", Arial, "Noto Sans";
+      background: radial-gradient(1200px 800px at 20% -10%, #1a2030 0%, var(--bg) 55%);
+      color:var(--ink);
+      min-height:100svh;
+      display:flex; align-items:stretch; justify-content:center;
+    }
+    .wrap{width:100%; max-width:980px; padding:20px; display:flex; flex-direction:column; gap:16px}
+    header{
+      position:sticky; top:0; z-index:10; padding:12px 16px; border-radius:12px;
+      background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,0));
+      backdrop-filter: blur(6px);
+    }
+    header h1{margin:0; font-weight:700; font-size:1.2rem; letter-spacing:.3px}
+    .sub{color:var(--muted); font-size:.9rem}
+    .controls{
+      display:flex; gap:10px; flex-wrap:wrap; align-items:center;
+      background:rgba(255,255,255,.04); padding:12px; border-radius:12px;
+    }
+    .controls .group{display:flex; gap:8px; flex-wrap:wrap; align-items:center}
+    .btn{
+      border:0; padding:10px 14px; border-radius:10px; cursor:pointer; font-weight:600;
+      background:var(--card); color:var(--ink); box-shadow:var(--shadow); transition:transform .04s ease;
+    }
+    .btn:hover{transform:translateY(-1px)}
+    .btn.accent{background:var(--accent); color:#0b1117}
+    .btn.alt{background:var(--accent-2); color:#0b1117}
+    .btn.ghost{background:transparent; outline:1px solid rgba(255,255,255,.15)}
+    .btn.danger{background:var(--danger); color:#0b1117}
+    .filters{
+      display:flex; gap:8px; flex-wrap:wrap;
+    }
+    .chip{
+      display:inline-flex; align-items:center; gap:8px; padding:6px 10px; border-radius:999px;
+      background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.12); color:var(--ink);
+      font-size:.9rem; cursor:pointer; user-select:none;
+    }
+    .chip input{accent-color:var(--accent)}
+    .card{
+      background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02));
+      border:1px solid rgba(255,255,255,.12);
+      border-radius:var(--radius); box-shadow:var(--shadow);
+      padding:18px; display:flex; flex-direction:column; gap:12px;
+    }
+    .title{
+      font-size:1.4rem; font-weight:800; line-height:1.2;
+    }
+    .artist{color:var(--muted); font-weight:600}
+    .badges{display:flex; gap:8px; flex-wrap:wrap}
+    .badge{
+      font-size:.75rem; padding:6px 10px; border-radius:999px;
+      background:#101521; border:1px solid rgba(255,255,255,.14); color:#c7d1de;
+    }
+    .notes{
+      background:#0e1320; border:1px dashed rgba(255,255,255,.18); color:#d9e2ef;
+      padding:12px; border-radius:10px; line-height:1.5; white-space:pre-wrap;
+      display:none;
+    }
+    .meta{
+      display:flex; align-items:center; justify-content:space-between; gap:12px; color:var(--muted); font-size:.9rem;
+    }
+    .counter{font-variant-numeric: tabular-nums}
+    .empty{
+      padding:30px; text-align:center; color:var(--muted);
+      border:1px dashed rgba(255,255,255,.2); border-radius:12px;
+    }
+    .loading{
+      display:flex; align-items:center; gap:10px; color:var(--muted); font-size:.95rem;
+    }
+    .dot{width:8px; height:8px; border-radius:50%; background:var(--accent); animation:b 1s infinite ease-in-out}
+    .dot:nth-child(2){animation-delay:.15s} .dot:nth-child(3){animation-delay:.3s}
+    @keyframes b{0%,80%,100%{opacity:.2; transform:translateY(0)} 40%{opacity:1; transform:translateY(-4px)}}
+    footer{color:var(--muted); font-size:.8rem; text-align:center; padding:16px 0}
+    a{color:inherit}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>Cancionero</h1>
+      <div class="sub">Tira de tu Google Sheet “Guitarra”, con aleatorización, filtros y notas.</div>
+    </header>
+
+    <div id="status" class="loading">
+      <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+      Cargando datos desde Google Sheets…
+    </div>
+
+    <div class="controls" style="display:none" id="controls">
+      <div class="group">
+        <button class="btn" id="prevBtn" title="Anterior">⟵ Anterior</button>
+        <button class="btn accent" id="nextBtn" title="Siguiente">Siguiente ⟶</button>
+        <button class="btn alt" id="reshuffleBtn" title="Re-aleatorizar">🎲 Re-aleatorizar</button>
+        <button class="btn ghost" id="toggleNotesBtn" title="Mostrar/Ocultar notas">📝 Mostrar notas</button>
+      </div>
+      <div class="group">
+        <span class="sub">Filtros (requieren “X”):</span>
+        <div class="filters" id="filters"></div>
+        <button class="btn danger" id="clearFiltersBtn" title="Limpiar filtros">Limpiar</button>
+      </div>
+    </div>
+
+    <div class="card" id="card" style="display:none">
+      <div class="title" id="songTitle">—</div>
+      <div class="artist" id="songArtist">—</div>
+      <div class="badges" id="badges"></div>
+      <div class="notes" id="notes"></div>
+      <div class="meta">
+        <div class="counter" id="counter">0 / 0</div>
+        <div class="sub" id="activeFiltersText">Sin filtros</div>
+      </div>
+    </div>
+
+    <div class="empty" id="empty" style="display:none">
+      No hay resultados con los filtros actuales. Probá limpiar filtros o re-aleatorizar.
+    </div>
+
+    <footer>
+      Hecho por <a href="https://lucianolupo95.github.io/" target="_blank" rel="noopener noreferrer">Lucho Lupo</a>.
+    </footer>
+  </div>
+
+  <script>
+    // =======================
+    //  CONFIGURACIÓN
+    // =======================
+    const CONFIG = {
+      // Tu hoja:
+      sheetId: "1XvQCNhSmZiEQawpTdR1cWEM3dgXzKttap8YyNdASVmo",
+      sheetName: "Guitarra",
+
+      // TODO: Ajustar estos nombres si en tu encabezado difieren
+      artistHeader: "Artista", // Columna A
+      titleHeader:  "Título",  // Columna C
+      notesHeader:  "Notas",   // Columna N
+
+      // Si quieres forzar los filtros (E→K) por nombre exacto, listalos aquí:
+      // featureHeaders: ["Carac1", "Carac2", "Carac3", "Carac4", "Carac5", "Carac6", "Carac7"],
+      featureHeaders: null, // deja null para auto-detección
+    };
+
+    // Marcadores válidos para "X" (true)
+    const TRUE_RE = /^(x|✓|✔|true|1|sí|si)$/i;
+
+    // Estado
+    let allRows = [];
+    let featureDefs = []; // [{header, label}]
+    let filtered = [];
+    let order = []; // índices barajados
+    let idx = 0;    // puntero actual
+    let notesVisible = false;
+
+    // DOM
+    const el = (id) => document.getElementById(id);
+    const $status = el("status");
+    const $controls = el("controls");
+    const $filters = el("filters");
+    const $card = el("card");
+    const $title = el("songTitle");
+    const $artist = el("songArtist");
+    const $badges = el("badges");
+    const $notes = el("notes");
+    const $counter = el("counter");
+    const $activeFiltersText = el("activeFiltersText");
+    const $empty = el("empty");
+    const $prevBtn = el("prevBtn");
+    const $nextBtn = el("nextBtn");
+    const $reshuffleBtn = el("reshuffleBtn");
+    const $toggleNotesBtn = el("toggleNotesBtn");
+    const $clearFiltersBtn = el("clearFiltersBtn");
+
+    // Utils
+    const sanitize = (v) => (v ?? "").toString().trim();
+    function fisherYates(arr){
+      for (let i=arr.length-1;i>0;i--){
+        const j = Math.floor(Math.random()*(i+1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+      return arr;
+    }
+    function getCheckedFeatureHeaders(){
+      return [...$filters.querySelectorAll('input[type="checkbox"]:checked')].map(i => i.value);
+    }
+    function humanList(arr){
+      if(!arr.length) return "Sin filtros";
+      if(arr.length===1) return `Filtro: ${arr[0]}`;
+      return `Filtros: ${arr.join(", ")}`;
+    }
+
+    // Carga + set up
+    (async function init(){
+      try{
+        const url = `https://opensheet.elk.sh/${CONFIG.sheetId}/${encodeURIComponent(CONFIG.sheetName)}`;
+        const res = await fetch(url);
+        const data = await res.json();
+        if(!Array.isArray(data)) throw new Error("Respuesta inesperada");
+
+        // Filtrar filas útiles
+        allRows = data.filter(r => sanitize(r[CONFIG.titleHeader]) || sanitize(r[CONFIG.artistHeader]));
+
+        // Detectar posibles columnas booleanas como filtros
+        featureDefs = getFeatureDefs(allRows, CONFIG);
+        renderFilters(featureDefs);
+
+        // Primera aplicación de filtros (ninguno) y barajado
+        applyFiltersAndRefresh();
+        $status.style.display = "none";
+        $controls.style.display = "flex";
+      }catch(err){
+        console.error(err);
+        $status.innerHTML = "❌ Error cargando datos. Revisá el ID, el nombre de la pestaña y que esté publicada.";
+      }
+    })();
+
+    function getFeatureDefs(rows, cfg){
+      if (Array.isArray(cfg.featureHeaders) && cfg.featureHeaders.length){
+        // Forzado por config
+        return cfg.featureHeaders.map(h => ({ header: h, label: h }));
+      }
+      // Auto-detección: tomar cabeceras y quedarnos con las que son "booleanas"
+      const headers = new Set();
+      rows.forEach(r => Object.keys(r).forEach(k => headers.add(k)));
+      headers.delete(cfg.artistHeader);
+      headers.delete(cfg.titleHeader);
+      headers.delete(cfg.notesHeader);
+      headers.delete(""); // por si acaso
+
+      const out = [];
+      for (const h of headers){
+        const values = rows.map(r => sanitize(r[h])).filter(v => v !== "");
+        if (!values.length) continue;
+        const allBoolMarkers = values.every(v => TRUE_RE.test(v)); // todas las no-vacías son marcadores
+        if (allBoolMarkers){
+          out.push({ header: h, label: h });
+        }
+      }
+      // Orden alfabético para que no cambie entre cargas
+      out.sort((a,b)=>a.label.localeCompare(b.label, 'es', {sensitivity:'base'}));
+      return out;
+    }
+
+    function renderFilters(defs){
+      $filters.innerHTML = "";
+      if(!defs.length){
+        const span = document.createElement("span");
+        span.className = "sub";
+        span.textContent = "No se detectaron columnas tipo 'X'.";
+        $filters.appendChild(span);
+        return;
+      }
+      defs.forEach(def=>{
+        const id = "f_" + def.header.replace(/\s+/g,"_");
+        const label = document.createElement("label");
+        label.className = "chip";
+        label.setAttribute("for", id);
+        label.innerHTML = `
+          <input type="checkbox" id="${id}" value="${def.header}" />
+          <span>${def.label}</span>
+        `;
+        $filters.appendChild(label);
+      });
+
+      // Eventos de filtros
+      $filters.addEventListener("change", ()=>{
+        applyFiltersAndRefresh(/*reshuffle=*/true);
+      });
+      $clearFiltersBtn.onclick = ()=>{
+        [...$filters.querySelectorAll('input[type="checkbox"]')].forEach(i => i.checked = false);
+        applyFiltersAndRefresh(/*reshuffle=*/true);
+      };
+    }
+
+    function applyFiltersAndRefresh(reshuffle=true){
+      const active = getCheckedFeatureHeaders();
+      filtered = allRows.filter(r => {
+        return active.every(h => TRUE_RE.test(sanitize(r[h])));
+      });
+      if(reshuffle) {
+        order = filtered.map((_,i)=>i);
+        fisherYates(order);
+        idx = 0;
+      }
+      updateView();
+    }
+
+    function updateView(){
+      const total = filtered.length;
+      const hasData = total > 0;
+      $card.style.display = hasData ? "block" : "none";
+      $empty.style.display = hasData ? "none" : "block";
+      $activeFiltersText.textContent = humanList(getCheckedFeatureHeaders());
+
+      if(!hasData) return;
+
+      const row = filtered[ order[idx] ];
+      const title = sanitize(row[CONFIG.titleHeader]) || "—";
+      const artist = sanitize(row[CONFIG.artistHeader]) || "—";
+      const notes = sanitize(row[CONFIG.notesHeader]);
+
+      $title.textContent = title;
+      $artist.textContent = artist;
+      $counter.textContent = `${idx+1} / ${total}`;
+
+      // Badges: mostrar qué filtros aplica esta canción (entre los detectados)
+      $badges.innerHTML = "";
+      featureDefs.forEach(def=>{
+        if (TRUE_RE.test(sanitize(row[def.header]))){
+          const b = document.createElement("span");
+          b.className = "badge";
+          b.textContent = def.label;
+          $badges.appendChild(b);
+        }
+      });
+
+      // Notas
+      if(notesVisible){
+        $notes.style.display = notes ? "block" : "none";
+        $notes.textContent = notes || "";
+        $toggleNotesBtn.textContent = "📝 Ocultar notas";
+      }else{
+        $notes.style.display = "none";
+        $toggleNotesBtn.textContent = "📝 Mostrar notas";
+      }
+    }
+
+    // Navegación
+    $prevBtn.onclick = ()=>{
+      if(!filtered.length) return;
+      idx = (idx - 1 + filtered.length) % filtered.length;
+      // Ocultar notas al cambiar para evitar confusión
+      notesVisible = false;
+      updateView();
+    };
+    $nextBtn.onclick = ()=>{
+      if(!filtered.length) return;
+      idx = (idx + 1) % filtered.length;
+      notesVisible = false;
+      updateView();
+    };
+    $reshuffleBtn.onclick = ()=>{
+      if(!filtered.length) return;
+      order = filtered.map((_,i)=>i);
+      fisherYates(order);
+      idx = 0;
+      notesVisible = false;
+      updateView();
+    };
+    $toggleNotesBtn.onclick = ()=>{
+      notesVisible = !notesVisible;
+      updateView();
+    };
+
+    // Tips: log de cabeceras para ajustar config si hace falta
+    // (mirá la consola del navegador la primera vez)
+    window.addEventListener("load", ()=>{
+      if(allRows.length){
+        const keys = Object.keys(allRows[0]);
+        console.log("Cabeceras detectadas:", keys);
+        if(!keys.includes(CONFIG.artistHeader) || !keys.includes(CONFIG.titleHeader)){
+          console.warn("⚠️ Revisá CONFIG.artistHeader / CONFIG.titleHeader / CONFIG.notesHeader");
+        }
+      }
+    });
+  </script>
+</body>
+</html>
